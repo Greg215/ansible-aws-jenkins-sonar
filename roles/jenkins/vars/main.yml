@@ -1,0 +1,4 @@
+---
+jenkins_docker_name: jenkins
+jenkins_image: jenkins:alpine
+jenkins_home_volume: /var/jenkins_home

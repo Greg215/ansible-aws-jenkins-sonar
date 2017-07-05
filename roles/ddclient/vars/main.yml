@@ -1,0 +1,9 @@
+---
+perl_packages:
+   -  perl
+   -  perl-Net-IP
+   -  perl-Net-DNS
+   -  perl-IO-Socket-INET6
+   -  perl-IO-Socket-SSL
+   -  perl-File-Temp
+   -  patch

@@ -1,0 +1,19 @@
+---
+use_ami: false
+aws_region: eu-west-1
+sshkey_name: DevOps
+base_image: ami-02ace471
+purpose: devops
+aws_vpc_subnet: vpc-eb0c128f
+security_group_id: sg-66f6511f
+volume_name: devops_cicd
+size_of_volume: 80
+
+machines_conf:
+  -
+    instance_type: t2.large
+    count: 1
+    tags:
+      Name: "cicd-automation"
+      purpose: "{{ purpose }}"
+    group_name: cicd-automation

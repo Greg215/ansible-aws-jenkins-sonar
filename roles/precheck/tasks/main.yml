@@ -1,0 +1,33 @@
+---
+- set_fact:
+    from_ami: False
+
+- name: check the CICI instance exist or not
+  ec2_remote_facts:
+      region: "{{ aws_region }}"
+      filters:
+        instance-state-name: running
+        "tag:Name": cicd-automation
+  register: created_ec2
+
+- debug:
+    var: created_ec2
+
+- name: add inventory groups from created instance
+  add_host:
+    name: "{{ item.public_ip_address }}"
+    groups: "{{ item.tags.Name }}"
+    ansible_user: ec2-user
+  changed_when: false
+  with_items: "{{ created_ec2.instances }}"
+
+- name: check the jenkins backup exist or not
+  ec2_vol_facts:
+      region: "{{ aws_region }}"
+      filters:
+        "tag:Name": data_cicd_automation
+  register: created_vol
+
+- debug:
+    var: created_vol
+

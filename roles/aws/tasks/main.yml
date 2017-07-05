@@ -1,0 +1,93 @@
+---
+- name: create machine from base image if not created 
+  ec2:
+    region: "{{ aws_region }}"
+    instance_type: "{{ item.instance_type }}"
+    image: "{{ base_image }}"
+    wait: yes
+    count_tag: 
+      Name: "{{ item.tags.Name }}"
+    exact_count: "{{ item.count }}"
+    group_id: "{{ security_group_id }}"
+    key_name: "{{ sshkey_name }}"
+    instance_tags: "{{ item.tags }}"
+  register: machines
+  with_items: "{{ machines_conf }}"
+  when: "not from_ami"
+
+- set_fact:
+    machines: "{{ machines.results|sum(attribute='instances', start=[]) }}"
+
+- name: Add tags
+  ec2_tag:
+    region: "{{ aws_region }}"
+    resource: "{{ item.id }}"
+    tags:
+      Purpose: "devops"
+      owner: "Greg Hu"
+  with_items: "{{ machines }}"
+  when: "not from_ami"
+
+- name: add inventory groups
+  add_host:
+    name: "{{ item.machine.public_ip }}"
+    groups: "{{ item.config.group_name }}"
+    ansible_user: ec2-user
+  with_items: "{{ machines|match_config(machines_conf) }}"
+
+- name: wait for SSH to come up
+  wait_for:
+    host: "{{ item.public_ip }}"
+    port: 22
+    delay: 60
+    timeout: 360
+    state: started
+  with_items: "{{ machines }}"
+
+- name: create and attach the volume if not created
+  ec2_vol:
+     region: "{{ aws_region }}"
+     instance: "{{ item.id }}"
+     name: "{{ volume_name }}"
+     tags:
+       owner: "Greg Hu"
+     device_name: /dev/sdf
+     volume_size: "{{ size_of_volume }}"
+     delete_on_termination: yes
+  with_items: "{{ machines }}"
+  register: ec2_vol
+
+- name: Find machines
+  ec2_remote_facts:
+    region: "{{ aws_region }}"
+    filters:
+      instance-state-name: running
+      "tag:purpose": "{{ purpose }}"
+  register: machines
+
+- cm_nodes:
+    machines: "{{ machines.instances }}"
+  register: nodes
+
+- debug:
+    var: nodes
+  
+- name: Render etc hosts file
+  become: true
+  template:
+    src: etc_hosts.j2
+    dest: /etc/hosts
+  vars:
+    node_name: "{{ item.name }}"
+  delegate_to: "{{ item.public_ip }}"
+  with_items: "{{ nodes.nodes }}"
+
+- name: Change hostnames
+  become: true
+  shell: echo '{{ item.name }}' > /etc/hostname | hostname '{{ item.name}}'
+  delegate_to: "{{ item.public_ip }}"
+  with_items: "{{ nodes.nodes }}"
+
+- debug:
+    msg: "Host started"
+

@@ -1,0 +1,5 @@
+127.0.0.1 localhost localhost.domain
+
+{% for node in nodes.nodes %}
+{{ node.private_ip }} {{ node.name }}
+{% endfor %}

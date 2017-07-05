@@ -1,0 +1,67 @@
+---
+- name: run jenkins
+  docker_container:
+    name: jenkins
+    image: greghu/jenkins
+    privileged: true
+    ports:
+      - 8080:8080
+    volumes: 
+      - jenkins_home:/var/jenkins_home
+      - /bin/docker:/usr/bin/docker
+      - /var/run/docker.sock:/var/run/docker.sock
+
+- name: Make sure Jenkins is responding on the configured port.
+  wait_for: port=8080 delay=3 timeout=30
+
+- name: copy to remote
+  synchronize:
+   src: files/
+   dest: /volumes/docker/volumes/jenkins_home/_data
+   archive: yes  
+   links: yes
+
+- name: copy lib file to remote
+  synchronize:
+   src: templates/lib/
+   dest: /tmp/lib
+   archive: yes
+   links: yes
+
+- name: copy over the master and unit key
+  synchronize:
+   src: templates/secrets/
+   dest: /volumes/docker/volumes/jenkins_home/_data/secrets
+   archive: yes
+   links: yes
+
+- name: change the owner of jenkins config
+  command: docker exec -u root jenkins chown -R jenkins /var/
+
+- name: copy lib file for docker
+  command: docker cp /tmp/lib/. jenkins:/usr/lib/x86_64-linux-gnu
+
+- name: change the owner of docker socket
+  command: docker exec -u root jenkins chown -R jenkins /run
+
+- name: get sonar token
+  command: "curl -X POST -u user:pw -F 'login=admin' -F 'name=jenkins' http://greg.dedyn.io:9000/api/user_tokens/generate"
+  register: sonar_token
+
+- set_fact:
+    message: "{{ sonar_token.stdout|from_json }}"
+
+- name: put the new sonar token
+  lineinfile:
+    path: /volumes/docker/volumes/jenkins_home/_data/hudson.plugins.sonar.SonarGlobalConfiguration.xml
+    regexp: <serverAuthenticationToken>
+    line: "      <serverAuthenticationToken>{{ message.token }}</serverAuthenticationToken>"
+    insertafter: <serverAuthenticationToken>
+  with_items: message
+
+- name: restart jenkins by container
+  command: docker restart jenkins
+
+- name: Make sure Jenkins is responding on the configured port again
+  wait_for: port=8080 delay=3 timeout=30
+

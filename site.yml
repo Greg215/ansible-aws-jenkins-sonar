@@ -1,0 +1,22 @@
+---
+- name: create aws instance for CICD
+  hosts: all
+  gather_facts: true
+  vars:
+    group_name: cicd-automation
+  roles:
+    - precheck
+    - aws
+
+- name: configure on new instance
+  hosts: cicd-automation
+  gather_facts: true
+  become: true
+  roles:
+    - mountVolume
+    - jav
+    - pip
+    - docker
+    - ddclient
+    - sonar
+    - jenkins

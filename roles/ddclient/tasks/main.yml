@@ -1,0 +1,28 @@
+- name: install RPM package for perl-Net-IP
+  yum: 
+    name: ftp://rpmfind.net/linux/epel/7/x86_64/p/perl-Net-IP-1.26-4.el7.noarch.rpm
+    state: present
+  tags: with_alias
+
+- name: Install perl
+  yum:
+    name: "{{ item }}"
+    state: present
+  tags: with_alias
+  with_items: "{{ perl_packages }}"
+
+- name: install RPM package for ddclient
+  yum:
+    name: ftp://mirror.switch.ch/pool/4/mirror/epel/7/ppc64/d/ddclient-3.8.3-2.el7.noarch.rpm
+    state: present
+  tags: with_alias
+
+- name: Configure ddclient
+  template:
+    src: ddclient.conf.j2
+    dest: /etc/ddclient.conf
+  tags: with_alias
+
+- name: Start ddclient
+  shell: ddclient -force
+  tags: with_alias

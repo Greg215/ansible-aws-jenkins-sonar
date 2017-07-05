@@ -1,0 +1,27 @@
+---
+- include: setup-RedHat.yml
+  when: ansible_os_family == 'RedHat'
+
+- name: install container selinux 2.9
+  yum: 
+    name: ftp://fr2.rpmfind.net/linux/centos/7.3.1611/extras/x86_64/Packages/container-selinux-2.9-4.el7.noarch.rpm
+    state: present
+
+- name: Install Docker.
+  become: true
+#  yum: name=docker state=latest
+  package: name={{ docker_package }} state=present
+
+- name: Ensure Docker is started and enabled at boot.
+  become: true
+  service:
+    name: docker
+    state: started
+    enabled: yes
+
+- include: docker-compose.yml
+  when: docker_install_compose
+
+- name: install docker-py
+  become: true
+  pip: name=docker-py
